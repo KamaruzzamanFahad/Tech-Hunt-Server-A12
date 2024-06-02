@@ -128,7 +128,7 @@ async function run() {
     //   const doc = req.body;
     //   const paymentresult = await paymentcollection.insertOne(doc);
 
-    //   // delet many
+    //    delet many
     //   const delquary = {
     //     _id: {
     //       $in: doc.cartIds.map((itemid) => new ObjectId(itemid)),
@@ -159,7 +159,6 @@ async function run() {
       res.send(result);
     });
 
-
     app.post('/users', async (req, res) => {
       const data = req.body;
       const email = data.email;
@@ -171,6 +170,8 @@ async function run() {
       }
       res.send('useralready')
     });
+
+
     // app.delete('/users', verigytoken, verifyAdmin, async (req, res) => {
     //   const id = req.query.id;
     //   const filter = { _id: new ObjectId(id) };
