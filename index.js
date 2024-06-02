@@ -52,8 +52,8 @@ async function run() {
       res.send(token);
     });
 
-    const db = client.db('BistroBoss');
-    // const menucollection = db.collection('menu');
+    const db = client.db('TechHunt');
+    const productcollection = db.collection('product');
     // const cartcollection = db.collection('cart');
     const usercollection = db.collection('user');
     // const paymentcollection = db.collection('payment');
@@ -73,11 +73,11 @@ async function run() {
     //   const menu = await menucollection.find().toArray();
     //   res.send(menu);
     // });
-    // app.post('/menu', verigytoken, verifyAdmin, async (req, res) => {
-    //   const doc = req.body;
-    //   const result = await menucollection.insertOne(doc);
-    //   res.send(result);
-    // });
+    app.post('/addproduct', verigytoken, verifyAdmin, async (req, res) => {
+      const doc = req.body;
+      const result = await productcollection.insertOne(doc);
+      res.send(result);
+    });
     // app.delete('/menu', verigytoken, verifyAdmin, async (req, res) => {
     //   const id = req.query.id;
     //   const filter = { _id: new ObjectId(id) };
@@ -138,31 +138,39 @@ async function run() {
     //   res.send({ paymentresult, deletresuult });
     // });
 
-    // // user collection
-    // app.get('/users/admin/:email', verigytoken, async (req, res) => {
-    //   const email = req.params.email;
-    //   const decodedemail = req.decoded.email;
-    //   if (email != decodedemail) {
-    //     res.status(401).send('forbiddin acces');
-    //   }
-    //   const quary = { email: email };
-    //   const result = await usercollection.findOne(quary);
-    //   if (result?.role == 'admin') {
-    //     res.send(true);
-    //   } else {
-    //     res.send(false);
-    //   }
-    // });
+    // user collection
+    app.get('/users/admin/:email', verigytoken, async (req, res) => {
+      const email = req.params.email;
+      const decodedemail = req.decoded.email;
+      if (email != decodedemail) {
+        res.status(401).send('forbiddin acces');
+      }
+      const quary = { email: email };
+      const result = await usercollection.findOne(quary);
+      if (result?.role == 'admin') {
+        res.send(true);
+      } else {
+        res.send(false);
+      }
+    });
 
-    // app.get('/users', verigytoken, verifyAdmin, async (req, res) => {
-    //   const result = await usercollection.find().toArray();
-    //   res.send(result);
-    // });
-    // app.post('/users', async (req, res) => {
-    //   const data = req.body;
-    //   const result = await usercollection.insertOne(data);
-    //   res.send(result);
-    // });
+    app.get('/users', verigytoken, verifyAdmin, async (req, res) => {
+      const result = await usercollection.find().toArray();
+      res.send(result);
+    });
+
+
+    app.post('/users', async (req, res) => {
+      const data = req.body;
+      const email = data.email;
+      const query = { email: email };
+      const isuser = await usercollection.findOne(query);
+      if (!isuser) {
+        const result = await usercollection.insertOne(data);
+        res.send(result);
+      }
+      res.send('useralready')
+    });
     // app.delete('/users', verigytoken, verifyAdmin, async (req, res) => {
     //   const id = req.query.id;
     //   const filter = { _id: new ObjectId(id) };
