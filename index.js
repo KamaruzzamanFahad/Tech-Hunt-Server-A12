@@ -69,11 +69,17 @@ async function run() {
       }
     };
 
-    // app.get('/menu', async (req, res) => {
-    //   const menu = await menucollection.find().toArray();
-    //   res.send(menu);
-    // });
-    app.post('/addproduct', verigytoken, verifyAdmin, async (req, res) => {
+    app.get('/product', async (req, res) => {
+      const menu = await productcollection.find().toArray();
+      res.send(menu);
+    });
+    app.get('/myproduct', async (req, res) => {
+      const email = req.query.email;
+      const quiry = {OwnerEmail: email};
+      const result = await productcollection.find(quiry).toArray()
+      res.send(result);
+    });
+    app.post('/addproduct', verigytoken, async (req, res) => {
       const doc = req.body;
       const result = await productcollection.insertOne(doc);
       res.send(result);
