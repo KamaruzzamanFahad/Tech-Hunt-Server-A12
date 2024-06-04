@@ -70,13 +70,19 @@ async function run() {
     };
 
     app.get('/product', async (req, res) => {
-      const menu = await productcollection.find().toArray();
-      res.send(menu);
+      const result = await productcollection.find().toArray();
+      res.send(result);
+    });
+    app.get('/singleproduct', async (req, res) => {
+      const id = req.query.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await productcollection.findOne(query);
+      res.send(result);
     });
     app.get('/myproduct', async (req, res) => {
       const email = req.query.email;
-      const quiry = {OwnerEmail: email};
-      const result = await productcollection.find(quiry).toArray()
+      const quiry = { OwnerEmail: email };
+      const result = await productcollection.find(quiry).toArray();
       res.send(result);
     });
     app.post('/addproduct', verigytoken, async (req, res) => {
@@ -84,12 +90,35 @@ async function run() {
       const result = await productcollection.insertOne(doc);
       res.send(result);
     });
-    // app.delete('/menu', verigytoken, verifyAdmin, async (req, res) => {
-    //   const id = req.query.id;
-    //   const filter = { _id: new ObjectId(id) };
-    //   const result = await menucollection.deleteOne(filter);
-    //   res.send(result);
-    // });
+    app.patch('/updateproduct', verigytoken, async (req, res) => {
+      const id = req.query.id;
+      const doc = req.body;
+      const updatedoc = {
+        $set: {
+          name: doc.name,
+          detils: doc.detils,
+          ProductLink: doc.ProductLink,
+          OwnerName: doc.OwnerName,
+          OwnerEmail: doc.OwnerEmail,
+          OwnerImage: doc.OwnerImage,
+          image: doc.image,
+          Tags: doc.Tags,
+          Time: doc.Time,
+          Status: doc.Status,
+          votes: doc.votes,
+        },
+      };
+      const quary = { _id: new ObjectId(id) };
+      const result = await productcollection.updateOne(quary, updatedoc);
+      res.send(result);
+    });
+    app.delete('/deletmyproduct', verigytoken, async (req, res) => {
+      const id = req.query.id;
+      const filter = { _id: new ObjectId(id) };
+      const result = await productcollection.deleteOne(filter);
+      res.send(result);
+    });
+
     // app.patch('/menu', async (req, res) => {
     //   const quiry = { _id: new ObjectId(req.query.id) };
     //   const doc = req.body;
@@ -174,9 +203,8 @@ async function run() {
         const result = await usercollection.insertOne(data);
         res.send(result);
       }
-      res.send('useralready')
+      res.send('useralready');
     });
-
 
     // app.delete('/users', verigytoken, verifyAdmin, async (req, res) => {
     //   const id = req.query.id;
