@@ -112,6 +112,43 @@ async function run() {
       const result = await productcollection.updateOne(quary, updatedoc);
       res.send(result);
     });
+    app.patch('/upvote', verigytoken, async(req, res) => {
+      const doc = req.body;
+      const productId = doc.id;
+      const email = doc.email;
+      console.log(email, productId);
+
+      try {
+        // ইমেইল চেক এবং আপডেট করার অপারেশন
+        const updateResult = await productcollection.updateOne(
+            { _id: new ObjectId(productId), votes: { $ne: email } }, // ইমেইল না থাকা চেক
+            { $addToSet: { votes: email } } // ইমেইল যোগ করা
+        );
+
+        if (updateResult.matchedCount === 0) {
+            return res.status(200).send({ message: 'Email already exists in vote array' });
+        } else if (updateResult.modifiedCount === 1) {
+            return res.status(200).send({ message: 'Email added to vote array' });
+        } else {
+            return res.status(500).send({ message: 'Failed to update the product' });
+        }
+    } catch (error) {
+        res.status(500).send({ message: 'An error occurred', error });
+    }
+    });
+
+
+
+
+
+
+
+
+
+
+
+
+
     app.delete('/deletmyproduct', verigytoken, async (req, res) => {
       const id = req.query.id;
       const filter = { _id: new ObjectId(id) };
