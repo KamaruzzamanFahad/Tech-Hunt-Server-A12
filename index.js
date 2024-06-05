@@ -69,10 +69,20 @@ async function run() {
       }
     };
 
-    app.get('/product', async (req, res) => {
+    app.get('/productcount', async (req, res) => {
+      const count = await productcollection.estimatedDocumentCount()
+      res.send({count})
+    })
+    app.get('/products', async (req, res) => {
       const result = await productcollection.find().toArray();
       res.send(result);
     });
+    app.get('/products-serch', async (req, res) => {
+      const text = req.query.text;
+      const quary = { Tags: { $regex: new RegExp(text, 'i') } };
+      const result = await productcollection.find(quary).toArray();
+      res.send(result)
+    })
     app.get('/latestproduct', async (req, res) => {
       const result = await productcollection.find().sort({ Time: -1 }).limit(4).toArray();
       res.send(result);
