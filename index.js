@@ -54,7 +54,7 @@ async function run() {
 
     const db = client.db('TechHunt');
     const productcollection = db.collection('product');
-    const reportcollection = db.collection('ProductReview');
+    const reportcollection = db.collection('ReportedProduct');
     // const cartcollection = db.collection('cart');
     const usercollection = db.collection('user');
     // const paymentcollection = db.collection('payment');
@@ -202,10 +202,12 @@ async function run() {
     //report collection
     app.post('/report', async (req, res) => {
       const id = req.body.id;
+      const name = req.body.name;
       const email = req.body.email;
       console.log(id, email)
       const doc = {
-        reportedproductid: id,
+        reportedProductName: name,
+        reportedProductId: id,
         reportermail: email,
       }
       const reportresult = await reportcollection.insertOne(doc)
