@@ -54,6 +54,7 @@ async function run() {
 
     const db = client.db('TechHunt');
     const productcollection = db.collection('product');
+    const reportcollection = db.collection('ProductReview');
     // const cartcollection = db.collection('cart');
     const usercollection = db.collection('user');
     // const paymentcollection = db.collection('payment');
@@ -75,10 +76,10 @@ async function run() {
     })
     app.get('/productsbysize', async (req, res) => {
       const text = req.query.text;
-      const query = text? { Tags: { $regex: new RegExp(text, 'i') } } :{}
+      const query = text ? { Tags: { $regex: new RegExp(text, 'i') } } : {}
       const skip = req.query.skip;
       const limit = req.query.limit;
-      console.log(skip,limit)
+      console.log(skip, limit)
       const result = await productcollection.find(query).skip(parseInt(skip)).limit(parseInt(limit)).toArray();
       res.send(result);
     });
@@ -111,6 +112,23 @@ async function run() {
       const result = await productcollection.insertOne(doc);
       res.send(result);
     });
+
+
+    app.patch('/add-product-review', async (req, res) => {
+      const id = req.query.id;
+      const doc = req.body;
+      const filter = { _id: new ObjectId(id) }
+      const newdocument = {
+        $addToSet: {
+          Reviews: doc,
+        }
+      }
+      const result = await productcollection.updateOne(filter, newdocument)
+      res.send(result)
+    })
+
+
+
     app.patch('/updateproduct', verigytoken, async (req, res) => {
       const id = req.query.id;
       const doc = req.body;
@@ -140,26 +158,39 @@ async function run() {
       console.log(email, productId);
 
       try {
-        const updateResult = await productcollection.updateOne(
-          { _id: new ObjectId(productId), votes: { $ne: email } },
-          { $addToSet: { votes: email } }
-        );
+        // Check if the email already exists in the vote array
+        const product = await productcollection.findOne({ _id: new ObjectId(productId), votes: email });
 
-        if (updateResult.matchedCount === 0) {
-          return res
-            .status(200)
-            .send({ message: 'Email already exists in vote array' });
-        } else if (updateResult.modifiedCount === 1) {
-          return res.status(200).send({ message: 'Email added to vote array' });
+        if (product) {
+          // Email exists, so remove it from the vote array
+          const removeResult = await productcollection.updateOne(
+            { _id: new ObjectId(productId) },
+            { $pull: { votes: email } }
+          );
+
+          if (removeResult.modifiedCount === 1) {
+            return res.status(200).send({ message: 'Email removed from vote array' });
+          } else {
+            return res.status(500).send({ message: 'Failed to remove email from vote array' });
+          }
         } else {
-          return res
-            .status(500)
-            .send({ message: 'Failed to update the product' });
+          // Email does not exist, so add it to the vote array
+          const addResult = await productcollection.updateOne(
+            { _id: new ObjectId(productId) },
+            { $addToSet: { votes: email } }
+          );
+
+          if (addResult.modifiedCount === 1) {
+            return res.status(200).send({ message: 'Email added to vote array' });
+          } else {
+            return res.status(500).send({ message: 'Failed to add email to vote array' });
+          }
         }
       } catch (error) {
         res.status(500).send({ message: 'An error occurred', error });
       }
     });
+
 
     app.delete('/deletmyproduct', verigytoken, async (req, res) => {
       const id = req.query.id;
@@ -168,6 +199,26 @@ async function run() {
       res.send(result);
     });
 
+    //report collection
+    app.post('/report', async (req, res) => {
+      const id = req.body.id;
+      const email = req.body.email;
+      console.log(id, email)
+      const doc = {
+        reportedproductid: id,
+        reportermail: email,
+      }
+      const reportresult = await reportcollection.insertOne(doc)
+
+      const filter = { _id: new ObjectId(id) }
+      const reportdoc = {
+        $addToSet: {
+          Report: email,
+        }
+      }
+      const productresult = await productcollection.updateOne(filter, reportdoc)
+      res.send({ reportresult, productresult })
+    })
     // app.patch('/menu', async (req, res) => {
     //   const quiry = { _id: new ObjectId(req.query.id) };
     //   const doc = req.body;
