@@ -83,8 +83,9 @@ async function run() {
     };
 
     app.get('/productcount', async (req, res) => {
-      const count = await productcollection.estimatedDocumentCount()
-      res.send({ count })
+      const filter = { Status: { $in: ['featured', 'accepted'] } };
+      const count = await productcollection.countDocuments(filter);
+      res.send({ count });
     })
     app.get('/productsbysize', async (req, res) => {
       const text = req.query.text;
@@ -247,7 +248,17 @@ async function run() {
     });
 
     //report collection
-    app.post('/report', async (req, res) => {
+    app.get('/report', verigytoken, verifyModerator, async (req, res) => {
+      const result = await reportcollection.find().toArray();
+      res.send(result)
+    })
+    app.delete('/report', verigytoken, verifyModerator, async (req, res) => {
+      const id = req.query.id;
+      const filter = { _id: new ObjectId(id) };
+      const result = await reportcollection.deleteOne(filter);
+      res.send(result)
+    })
+    app.post('/report', verigytoken, async (req, res) => {
       const id = req.body.id;
       const name = req.body.name;
       const email = req.body.email;
