@@ -56,7 +56,7 @@ async function run() {
     const db = client.db('TechHunt');
     const productcollection = db.collection('product');
     const reportcollection = db.collection('ReportedProduct');
-    // const cartcollection = db.collection('cart');
+    const reviewcollection = db.collection('review');
     const usercollection = db.collection('user');
     const paymentcollection = db.collection('payment');
 
@@ -82,6 +82,18 @@ async function run() {
       }
     };
 
+    app.get('/statistics', verigytoken, verifyAdmin, async (req, res) => {
+      const products = await productcollection.estimatedDocumentCount()
+      const reviews = await reviewcollection.estimatedDocumentCount()
+      const users = await usercollection.estimatedDocumentCount()
+      const chartData = [
+        { name: 'Products', value: products },
+        { name: 'Reviews', value: reviews },
+        { name: 'Users', value: users }
+      ];
+      res.send(chartData)
+    })
+
     app.get('/productcount', async (req, res) => {
       const filter = { Status: { $in: ['featured', 'accepted'] } };
       const count = await productcollection.countDocuments(filter);
@@ -92,7 +104,6 @@ async function run() {
       const query = text ? { Status: { $in: ['featured', 'accepted',] }, Tags: { $regex: new RegExp(text, 'i') } } : { Status: { $in: ['featured', 'accepted',] } }
       const skip = req.query.skip;
       const limit = req.query.limit;
-      console.log(skip, limit)
       const result = await productcollection.find(query).skip(parseInt(skip)).limit(parseInt(limit)).toArray();
       res.send(result);
     });
@@ -101,7 +112,7 @@ async function run() {
       const result = await productcollection.find(filter).toArray();
       res.send(result);
     });
-    app.get('/pendingproducts', async (req, res) => {
+    app.get('/pendingproducts', verigytoken, verifyModerator, async (req, res) => {
       const filter = { Status: { $in: ['pending', 'featured', 'accepted', 'rejected'] } };
 
       const result = await productcollection.find(filter).toArray();
@@ -130,11 +141,10 @@ async function run() {
 
       res.send(result);
     });
-    app.patch('/product-status-update', verigytoken, async (req, res) => {
+    app.patch('/product-status-update', verigytoken, verifyModerator, async (req, res) => {
       const status = req.body.status;
       const id = req.body.id;
       const filter = { _id: new ObjectId(id) }
-      console.log(id, status)
       updatdoc = {
         $set: {
           Status: status,
@@ -143,7 +153,7 @@ async function run() {
       const result = await productcollection.updateOne(filter, updatdoc)
       res.send(result)
     })
-    app.get('/singleproduct', async (req, res) => {
+    app.get('/singleproduct', verigytoken, async (req, res) => {
       const id = req.query.id;
       const query = { _id: new ObjectId(id) };
       const result = await productcollection.findOne(query);
@@ -162,16 +172,24 @@ async function run() {
     });
 
 
-    app.patch('/add-product-review', verigytoken, async (req, res) => {
-      const id = req.query.id;
+    app.post('/add-product-review', verigytoken, async (req, res) => {
+      // const id = req.query.id;
       const doc = req.body;
-      const filter = { _id: new ObjectId(id) }
-      const newdocument = {
-        $addToSet: {
-          Reviews: doc,
-        }
-      }
-      const result = await productcollection.updateOne(filter, newdocument)
+      // const filter = { _id: new ObjectId(id) }
+      // const newdocument = {
+      //   $addToSet: {
+      //     Reviews: doc,
+      //   }
+      // }
+      // const result = await productcollection.updateOne(filter, newdocument)
+      const result = await reviewcollection.insertOne(doc)
+      res.send(result)
+    })
+
+    app.get('/reviews', verigytoken, async (req, res) => {
+      const id = req.query.id;
+      const query = { productid: id }
+      const result = await reviewcollection.find(query).toArray()
       res.send(result)
     })
 
@@ -203,7 +221,6 @@ async function run() {
       const doc = req.body;
       const productId = doc.id;
       const email = doc.email;
-      console.log(email, productId);
 
       try {
         // Check if the email already exists in the vote array
@@ -262,7 +279,6 @@ async function run() {
       const id = req.body.id;
       const name = req.body.name;
       const email = req.body.email;
-      console.log(id, email)
       const doc = {
         reportedProductName: name,
         reportedProductId: id,
@@ -285,7 +301,6 @@ async function run() {
     //payment intent
     app.post('/create-payment-intent', verigytoken, async (req, res) => {
       const price = req.body.price;
-      console.log(price);
 
       const paymentIntent = await stripe.paymentIntents.create({
         amount: parseInt(price * 100),
@@ -299,7 +314,7 @@ async function run() {
     });
 
 
-    app.post('/payment', async (req, res) => {
+    app.post('/payment', verigytoken, async (req, res) => {
       const doc = req.body;
       const paymentresult = await paymentcollection.insertOne(doc);
       res.send(paymentresult)
@@ -310,82 +325,14 @@ async function run() {
       const result = await paymentcollection.findOne(quiry)
       res.send(result)
     })
-    // app.patch('/menu', async (req, res) => {
-    //   const quiry = { _id: new ObjectId(req.query.id) };
-    //   const doc = req.body;
-    //   const update = {
-    //     $set: doc,
-    //   };
-    //   const result = await menucollection.updateOne(quiry, update);
-    //   res.send(result);
-    // });
 
-    // //cart collection
-    // app.get('/carts', async (req, res) => {
-    //   const email = req.query.email;
-    //   const quary = { email: email };
-    //   const result = await cartcollection.find(quary).toArray();
-    //   res.send(result);
-    // });
-    // app.post('/carts', verigytoken, async (req, res) => {
-    //   const data = req.body;
-    //   const result = await cartcollection.insertOne(data);
-    //   res.send(result);
-    // });
-    // app.delete('/carts', async (req, res) => {
-    //   const id = req.query.id;
-    //   const quary = { _id: new ObjectId(id) };
-    //   const result = await cartcollection.deleteOne(quary);
-    //   res.send(result);
-    // });
-
-    // //payment collection
-    // app.get('/paymenthistry', verigytoken, async (req, res) => {
-    //   const email = req.query.email;
-    //   if (email != req.decoded.email) {
-    //     res.status(401).send('forbidden asses');
-    //   }
-    //   const quary = { email: email };
-    //   const result = await paymentcollection.find(quary).toArray();
-    //   res.send(result);
-    //   console.log(email);
-    // });
-    // app.post('/payment', async (req, res) => {
-    //   const doc = req.body;
-    //   const paymentresult = await paymentcollection.insertOne(doc);
-
-    //    delet many
-    //   const delquary = {
-    //     _id: {
-    //       $in: doc.cartIds.map((itemid) => new ObjectId(itemid)),
-    //     },
-    //   };
-    //   const deletresuult = await cartcollection.deleteMany(delquary);
-    //   res.send({ paymentresult, deletresuult });
-    // });
 
     // user collection
-    app.get('/users/admin/:email', verigytoken, async (req, res) => {
-      const email = req.params.email;
-      const decodedemail = req.decoded.email;
-      if (email != decodedemail) {
-        res.status(401).send('forbiddin acces');
-      }
-      const quary = { email: email };
-      const result = await usercollection.findOne(quary);
-      if (result?.role == 'admin') {
-        res.send(true);
-      } else {
-        res.send(false);
-      }
-    });
 
-
-    app.patch('/user-role-update', verigytoken, async (req, res) => {
+    app.patch('/user-role-update', verigytoken, verifyAdmin, async (req, res) => {
       const role = req.body.role;
       const id = req.body.id;
       const filter = { _id: new ObjectId(id) }
-      console.log(id, role)
       updatdoc = {
         $set: {
           role: role,
@@ -419,89 +366,9 @@ async function run() {
       res.send('useralready');
     });
 
-    // app.delete('/users', verigytoken, verifyAdmin, async (req, res) => {
-    //   const id = req.query.id;
-    //   const filter = { _id: new ObjectId(id) };
-    //   const result = await usercollection.deleteOne(filter);
-    //   res.send(result);
-    // });
-    // app.patch(
-    //   '/users/admin/:id',
-    //   verigytoken,
-    //   verifyAdmin,
-    //   async (req, res) => {
-    //     const id = req.params.id;
-    //     const quary = { _id: new ObjectId(id) };
-    //     const updatedoc = {
-    //       $set: {
-    //         role: 'admin',
-    //       },
-    //     };
-    //     const result = await usercollection.updateOne(quary, updatedoc);
-    //     res.send(result);
-    //   }
-    // );
-
-    // // admin statistics
-    // app.get('/adminstatistics', verigytoken, verifyAdmin, async (req, res) => {
-    //   const customer = await usercollection.estimatedDocumentCount();
-    //   const product = await menucollection.estimatedDocumentCount();
-    //   const order = await paymentcollection.estimatedDocumentCount();
-
-    //   const result = await paymentcollection
-    //     .aggregate([
-    //       {
-    //         $group: {
-    //           _id: null,
-    //           totalRevinew: { $sum: '$price' },
-    //         },
-    //       },
-    //     ])
-    //     .toArray();
-
-    //   const revinew = result.length > 0 ? result[0].totalRevinew : 0;
-
-    //   res.send({
-    //     customer,
-    //     product,
-    //     order,
-    //     revinew,
-    //   });
-    // });
-    // app.get('/orderstats',verigytoken,verifyAdmin, async (req, res) => {
-    //   const result = await paymentcollection
-    //     .aggregate([
-    //       {
-    //         $unwind: '$menuIds',
-    //       },
-    //       {
-    //         $lookup: {
-    //           from: 'menu',
-    //           localField: 'menuIds',
-    //           foreignField: '_id',
-    //           as: 'menuitems',
-    //         },
-    //       },
-    //       {
-    //         $unwind: '$menuitems',
-    //       },
-    //       {
-    //         $group: {
-    //           _id: '$menuitems.category',
-    //           quntity: {$sum: 1},
-    //           rebenue: {$sum: '$menuitems.price'}
-    //         },
-    //       },
-    //     ])
-    //     .toArray();
-    //   res.send(result);
-    // });
 
     // Send a ping to confirm a successful connection
     await client.db('admin').command({ ping: 1 });
-    console.log(
-      'Pinged your deployment. You successfully connected to MongoDB!'
-    );
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
@@ -510,7 +377,6 @@ async function run() {
 run().catch(console.dir);
 
 app.get('/', (req, res) => {
-  console.log('server running');
   res.send('server is running');
 });
 
