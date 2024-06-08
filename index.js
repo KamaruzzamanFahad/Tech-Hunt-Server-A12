@@ -88,7 +88,7 @@ async function run() {
     })
     app.get('/productsbysize', async (req, res) => {
       const text = req.query.text;
-      const query = text ? { Tags: { $regex: new RegExp(text, 'i') } } : {}
+      const query = text ? { Status: { $in: ['featured', 'accepted',] }, Tags: { $regex: new RegExp(text, 'i') } } : { Status: { $in: ['featured', 'accepted',] } }
       const skip = req.query.skip;
       const limit = req.query.limit;
       console.log(skip, limit)
@@ -96,26 +96,44 @@ async function run() {
       res.send(result);
     });
     app.get('/products', async (req, res) => {
-      const result = await productcollection.find().toArray();
-      res.send(result);
-    });
-    app.get('/pendingproducts', async (req, res) => {
-      const filter = { Status: { $in: ['pending', 'accept', 'reject'] } };
+      const filter = { Status: { $in: ['featured', 'accepted'] } };
       const result = await productcollection.find(filter).toArray();
       res.send(result);
     });
+    app.get('/pendingproducts', async (req, res) => {
+      const filter = { Status: { $in: ['pending', 'featured', 'accepted', 'rejected'] } };
+
+      const result = await productcollection.find(filter).toArray();
+
+      result.sort((a, b) => {
+        const order = ['pending', 'featured', 'accepted', 'rejected'];
+        return order.indexOf(a.Status) - order.indexOf(b.Status);
+      });
+
+      res.send(result);
+
+    });
     app.get('/latestproduct', async (req, res) => {
-      const result = await productcollection.find().sort({ Time: -1 }).limit(4).toArray();
+      const filter = { Status: 'featured' };
+      const result = await productcollection.find(filter).sort({ Time: -1 }).limit(4).toArray();
       res.send(result);
     });
     app.get('/tranding-tproduct', async (req, res) => {
-      const result = await productcollection.find().sort({ votes: -1 }).limit(6).toArray();
+      const filter = { Status: { $in: ['accepted', 'featured'] } };
+      const result = await productcollection.aggregate([
+        { $match: filter },
+        { $addFields: { votesLength: { $size: "$votes" } } },
+        { $sort: { votesLength: -1 } },
+        { $limit: 6 }
+      ]).toArray();
+
       res.send(result);
     });
-    app.patch('/productstatusupdate', verigytoken, async (req, res) => {
+    app.patch('/product-status-update', verigytoken, async (req, res) => {
       const status = req.body.status;
       const id = req.body.id;
       const filter = { _id: new ObjectId(id) }
+      console.log(id, status)
       updatdoc = {
         $set: {
           Status: status,
