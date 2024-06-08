@@ -380,6 +380,21 @@ async function run() {
       }
     });
 
+
+    app.patch('/user-role-update', verigytoken, async (req, res) => {
+      const role = req.body.role;
+      const id = req.body.id;
+      const filter = { _id: new ObjectId(id) }
+      console.log(id, role)
+      updatdoc = {
+        $set: {
+          role: role,
+        }
+      }
+      const result = await usercollection.updateOne(filter, updatdoc)
+      res.send(result)
+    })
+
     app.get('/users', verigytoken, verifyAdmin, async (req, res) => {
       const result = await usercollection.find().toArray();
       res.send(result);
