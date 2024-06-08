@@ -4,6 +4,7 @@ const port = process.env.PORT | 3000;
 require('dotenv').config();
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const stripe = require('stripe')(process.env.STRIP_SECRET);
 //middleware
 app.use(cors());
 app.use(express.json());
@@ -57,13 +58,24 @@ async function run() {
     const reportcollection = db.collection('ReportedProduct');
     // const cartcollection = db.collection('cart');
     const usercollection = db.collection('user');
-    // const paymentcollection = db.collection('payment');
+    const paymentcollection = db.collection('payment');
 
     const verifyAdmin = async (req, res, next) => {
       const email = req.decoded.email;
       const quary = { email: email };
       const result = await usercollection.findOne(quary);
       if (result.role == 'admin') {
+        next();
+      } else {
+        res.status(401).send('forbiddin acces');
+      }
+    };
+
+    const verifyModerator = async (req, res, next) => {
+      const email = req.decoded.email;
+      const quary = { email: email };
+      const result = await usercollection.findOne(quary);
+      if (result.role == 'moderator') {
         next();
       } else {
         res.status(401).send('forbiddin acces');
@@ -87,6 +99,11 @@ async function run() {
       const result = await productcollection.find().toArray();
       res.send(result);
     });
+    app.get('/pendingproducts', async (req, res) => {
+      const filter = { Status: { $in: ['pending', 'accept', 'reject'] } };
+      const result = await productcollection.find(filter).toArray();
+      res.send(result);
+    });
     app.get('/latestproduct', async (req, res) => {
       const result = await productcollection.find().sort({ Time: -1 }).limit(4).toArray();
       res.send(result);
@@ -95,13 +112,25 @@ async function run() {
       const result = await productcollection.find().sort({ votes: -1 }).limit(6).toArray();
       res.send(result);
     });
+    app.patch('/productstatusupdate', verigytoken, async (req, res) => {
+      const status = req.body.status;
+      const id = req.body.id;
+      const filter = { _id: new ObjectId(id) }
+      updatdoc = {
+        $set: {
+          Status: status,
+        }
+      }
+      const result = await productcollection.updateOne(filter, updatdoc)
+      res.send(result)
+    })
     app.get('/singleproduct', async (req, res) => {
       const id = req.query.id;
       const query = { _id: new ObjectId(id) };
       const result = await productcollection.findOne(query);
       res.send(result);
     });
-    app.get('/myproduct', async (req, res) => {
+    app.get('/myproduct', verigytoken, async (req, res) => {
       const email = req.query.email;
       const quiry = { OwnerEmail: email };
       const result = await productcollection.find(quiry).toArray();
@@ -114,7 +143,7 @@ async function run() {
     });
 
 
-    app.patch('/add-product-review', async (req, res) => {
+    app.patch('/add-product-review', verigytoken, async (req, res) => {
       const id = req.query.id;
       const doc = req.body;
       const filter = { _id: new ObjectId(id) }
@@ -221,6 +250,37 @@ async function run() {
       const productresult = await productcollection.updateOne(filter, reportdoc)
       res.send({ reportresult, productresult })
     })
+
+
+
+    //payment intent
+    app.post('/create-payment-intent', verigytoken, async (req, res) => {
+      const price = req.body.price;
+      console.log(price);
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: parseInt(price * 100),
+        currency: 'usd',
+        payment_method_types: ['card'],
+      });
+
+      res.send({
+        clientSecret: paymentIntent.client_secret,
+      });
+    });
+
+
+    app.post('/payment', async (req, res) => {
+      const doc = req.body;
+      const paymentresult = await paymentcollection.insertOne(doc);
+      res.send(paymentresult)
+    })
+    app.get('/payment', verigytoken, async (req, res) => {
+      const email = req.query.email;
+      const quiry = { email: email }
+      const result = await paymentcollection.findOne(quiry)
+      res.send(result)
+    })
     // app.patch('/menu', async (req, res) => {
     //   const quiry = { _id: new ObjectId(req.query.id) };
     //   const doc = req.body;
@@ -293,6 +353,13 @@ async function run() {
 
     app.get('/users', verigytoken, verifyAdmin, async (req, res) => {
       const result = await usercollection.find().toArray();
+      res.send(result);
+    });
+
+    app.get('/user', verigytoken, async (req, res) => {
+      const email = req.query.email;
+      const query = { email: email };
+      const result = await usercollection.findOne(query)
       res.send(result);
     });
 
