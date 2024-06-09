@@ -59,6 +59,7 @@ async function run() {
     const reviewcollection = db.collection('review');
     const usercollection = db.collection('user');
     const paymentcollection = db.collection('payment');
+    const cuponcollection = db.collection('cupon');
 
     const verifyAdmin = async (req, res, next) => {
       const email = req.decoded.email;
@@ -367,8 +368,56 @@ async function run() {
     });
 
 
+    //cuponcollection
+    app.post('/cupon-add', verigytoken, verifyAdmin, async (req, res) => {
+      const doc = req.body;
+      const result = await cuponcollection.insertOne(doc);
+      res.send(result)
+    })
+
+    app.get('/cupon', async (req, res) => {
+      const result = await cuponcollection.find().toArray()
+      res.send(result)
+    })
+
+    app.patch('/cupon-update', verigytoken, verifyAdmin, async (req, res) => {
+      const id = req.query.id;
+      const doc = req.body;
+      const filter = { _id: new ObjectId(id) }
+      const updatdoc = {
+        $set: doc,
+      }
+      const result = await cuponcollection.updateOne(filter, updatdoc)
+      res.send(result)
+
+    })
+    app.get('/discount', verigytoken, async (req, res) => {
+      const copun = req.query.coupon;
+      const filter = { CouponCode: copun }
+      const result = await cuponcollection.findOne(filter)
+      if (result == null) {
+        res.send({ massage: 'Invalid Coupon Please Enter a Valid Coupon' })
+      } else {
+        const curerntdate = Date.now()
+        const coupondate = new Date(result.ExpiryDate)
+        if (curerntdate < coupondate) {
+          res.send({ dis: result.DiscountAmount })
+        } else {
+          res.send({ massage: 'Coupon Date Expired' })
+        }
+      }
+
+    })
+
+    app.delete('/deletecopun', verigytoken, verifyAdmin, async (req, res) => {
+      const id = req.query.id;
+      const filter = { _id: new ObjectId(id) }
+      const result = await cuponcollection.deleteOne(filter);
+      res.send(result)
+    })
+
     // Send a ping to confirm a successful connection
-    await client.db('admin').command({ ping: 1 });
+    // await client.db('admin').command({ ping: 1 });
   } finally {
     // Ensures that the client will close when you finish/error
     // await client.close();
