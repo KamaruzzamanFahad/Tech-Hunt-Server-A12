@@ -6,7 +6,16 @@ const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const stripe = require('stripe')(process.env.STRIP_SECRET);
 //middleware
-app.use(cors());
+//Must remove "/" from your production URL
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://techhunt-9cacf.web.app",
+      "https://techhunt-9cacf.firebaseapp.com",
+    ]
+  })
+);
 app.use(express.json());
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const uri = `mongodb+srv://${process.env.USER}:${process.env.PASS}@cluster0.otpbube.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0`;
